@@ -32,8 +32,53 @@ func main() {
 
 	must(db.Ping())
 	must(createPhoneNumbersTable(db))
-	_, err = insertPhone(db, "12345677890")
+	id, err := insertPhone(db, "12345677890")
 	must(err)
+
+	number, err := getPhone(db, id)
+	must(err)
+	fmt.Println("Number is...", number)
+
+	phones, err := allPhones(db)
+	must(err)
+	for _, p := range phones {
+		fmt.Printf("%+v\n", p)
+	}
+}
+
+func getPhone(db *sql.DB, id int) (string, error) {
+	var number string
+	err := db.QueryRow("SELECT value FROM phone_numbers WHERE id=$1", id).Scan(&number)
+	if err != nil {
+		return "", err
+	}
+	return number, nil
+}
+
+type phone struct {
+	id     int
+	number string
+}
+
+func allPhones(db *sql.DB) ([]phone, error) {
+	rows, err := db.Query("SELECT id, value FROM phone_numbers")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ret []phone
+	for rows.Next() {
+		var p phone
+		if err := rows.Scan(&p.id, &p.number); err != nil {
+			return nil, err
+		}
+		ret = append(ret, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return ret, nil
 }
 
 func insertPhone(db *sql.DB, phone string) (int, error) {
